@@ -28,7 +28,10 @@ GOLD, CRIMSON, CYAN, NEON = "#FFD700", "#DC143C", "#00E5FF", "#00FFAA"
 WHITE, DIM = "#FFFFFF", "#5A5A5A"
 SUCCESS, ERRC, WARN = "#22FF88", "#FF3B5C", "#FFA500"
 
-ROOT = Path.cwd() / "@JASMEETSINGHVIPMOD"
+if os.path.isdir("/storage/emulated/0/Download"):
+    ROOT = Path("/storage/emulated/0/Download/@JASMEETSINGHVIPMOD")
+else:
+    ROOT = Path.cwd() / "@JASMEETSINGHVIPMOD"
 LUA_EDIT = ROOT / "LUA_EDIT"
 COMPILED = ROOT / "COMPILED"
 LUA_ORIGINAL = ROOT / "LUA_ORIGINAL"
