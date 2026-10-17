@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
-import os, sys, time, math, shutil, threading, urllib.request, urllib.error
+import os, sys, time, math, shutil, threading, urllib.request, urllib.error, subprocess, tempfile, struct
 from pathlib import Path
 import hmac, hashlib
 
-_SECRET = "df8a36cee203abef25eb153ebbf1b340"
+# ==========================================
+# 🛡️ SECURITY CHECK: DO NOT EDIT CREDIT
+# ==========================================
+CREDIT = "@JASMEETSINGHVIPMOD"
 
+# Real check
+if CREDIT != "@JASMEETSINGHVIPMOD":
+    print("\n\033[91m[!] FATAL ERROR: Unauthorized Modification Detected.\033[0m")
+    print("\033[91m[!] Please download the official version.\033[0m\n")
+    sys.exit(1)
+
+_SECRET = "df8a36cee203abef25eb153ebbf1b340"
 
 def _sign(key_val, endpoint):
     ts = str(int(time.time()))
     msg = f"{key_val}:{ts}:{endpoint}".encode()
     sig = hmac.new(_SECRET.encode(), msg, hashlib.sha256).hexdigest()
     return ts, sig
-
 
 from rich.console import Console
 from rich.panel import Panel
@@ -23,10 +32,12 @@ from rich.table import Table
 console = Console()
 SERVER_URL = "https://jasmeet-tool.onrender.com"
 
-CREDIT = "@JASMEETSINGHVIPMOD"
 GOLD, CRIMSON, CYAN, NEON = "#FFD700", "#DC143C", "#00E5FF", "#00FFAA"
 WHITE, DIM = "#FFFFFF", "#5A5A5A"
 SUCCESS, ERRC, WARN = "#22FF88", "#FF3B5C", "#FFA500"
+
+# AUTO-DOWNLOAD LINK
+JAR_URL = "https://raw.githubusercontent.com/Rohilhd/Jamseet-tool-luaencrypt/main/unluac_patched.jar"
 
 ROOT = Path(__file__).resolve().parent / "@JASMEETSINGHVIPMOD"
 LUA_EDIT = ROOT / "LUA_EDIT"
@@ -38,11 +49,25 @@ PAK_UNPACK = ROOT / "PAK_UNPACK"
 
 _WAVE = "▁▂▃▄▅▆▇█"
 
-
 def setup_dirs():
     for d in [LUA_EDIT, COMPILED, LUA_ORIGINAL, PAK_ORIGINAL, PAK_RESULT, PAK_UNPACK]:
         d.mkdir(parents=True, exist_ok=True)
 
+def ensure_jar():
+    jar_path = Path("unluac_patched.jar")
+    if not jar_path.exists():
+        alert("unluac_patched.jar not found locally.", "warning")
+        console.print(f"  [bold {CYAN}]⬇️  Downloading from GitHub...[/bold {CYAN}]")
+        try:
+            req = urllib.request.Request(JAR_URL, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=30) as response, open(jar_path, 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+            alert("Download complete!", "success")
+            time.sleep(1)
+        except Exception as e:
+            alert(f"Failed to download jar: {e}", "error")
+            return False
+    return True
 
 def wave_text(length=58, phase=0.0):
     t = time.time() + phase
@@ -52,7 +77,6 @@ def wave_text(length=58, phase=0.0):
         idx = max(0, min(len(_WAVE)-1, int((v+1.0)*0.5*(len(_WAVE)-1))))
         s += _WAVE[idx]
     return s
-
 
 def rainbow_wave(length=58, phase=0.0):
     s = wave_text(length, phase)
@@ -65,7 +89,6 @@ def rainbow_wave(length=58, phase=0.0):
             f = p-1.0; r,g,b = int(0xDC*(1-f)+0xFF*f), int(0x14*(1-f)+0xD7*f), int(0x3C*(1-f)+0x00*f)
         t.append(ch, style=f"bold #{r:02x}{g:02x}{b:02x}")
     return t
-
 
 def banner(title=""):
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -101,7 +124,6 @@ def banner(title=""):
         console.print(Align.center(Text(f"──  {title}  ──", style=f"bold {CRIMSON}")))
         console.print()
 
-
 def print_credit():
     t = Text()
     t.append("  ✦  ", style=f"bold {GOLD}")
@@ -109,7 +131,6 @@ def print_credit():
     t.append(CREDIT, style=f"bold {GOLD}")
     t.append("  ✦  ", style=f"bold {GOLD}")
     console.print(Align.center(t))
-
 
 def render_menu(rows, title):
     banner(title)
@@ -128,7 +149,6 @@ def render_menu(rows, title):
     console.print()
     print_credit()
     console.print()
-
 
 def live_monitor_animation(filename=""):
     labels = ["CPU", "MEM", "KEY", "ENT"]
@@ -170,7 +190,6 @@ def live_monitor_animation(filename=""):
     console.print(bot)
     console.print()
 
-
 def _spinner_loop(stop_event, label="ENCRYPTING"):
     frames = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]
     i = 0
@@ -194,7 +213,6 @@ def _spinner_loop(stop_event, label="ENCRYPTING"):
     sys.stdout.write("\r" + " " * 70 + "\r")
     sys.stdout.flush()
 
-
 def upload(endpoint, files_dict, form_dict):
     boundary = "----JasmeetBoundary" + os.urandom(8).hex()
     body = bytearray()
@@ -210,13 +228,15 @@ def upload(endpoint, files_dict, form_dict):
     body += f'--{boundary}--\r\n'.encode()
     req = urllib.request.Request(f"{SERVER_URL}{endpoint}", data=bytes(body), method='POST')
     req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
-    req.add_header('X-Credit', '@JASMEETSINGHVIPMOD')
+    
+    # 🛡️ SECURITY: Send the CREDIT variable to the server so it can verify
+    req.add_header('X-Credit', CREDIT) 
+    
     _ts, _sig = _sign(form_dict.get('key', ''), endpoint)
     req.add_header('X-Timestamp', _ts)
     req.add_header('X-Signature', _sig)
     with urllib.request.urlopen(req, timeout=600) as resp:
         return resp.read()
-
 
 def safe_upload(endpoint, files, form, label="ENCRYPTING"):
     stop = threading.Event()
@@ -237,7 +257,6 @@ def safe_upload(endpoint, files, form, label="ENCRYPTING"):
         t.join(timeout=1)
         return None, str(e)
 
-
 def prompt(label):
     console.print(f"  [bold {GOLD}]{label}[/bold {GOLD}]  [dim]· {CREDIT}[/dim]")
     try:
@@ -245,18 +264,19 @@ def prompt(label):
     except (KeyboardInterrupt, EOFError):
         return ""
 
-
 def alert(msg, kind="info"):
     tags = {"success": ("✓", SUCCESS), "error": ("✗", ERRC), "warning": ("⚠", WARN), "info": ("▶", CYAN)}
     tag, color = tags.get(kind, tags["info"])
     console.print(f"  {tag}  {msg}  [dim]| {CREDIT}[/dim]", style=color)
 
-
 def verify_key(key):
     body = f'--b\r\nContent-Disposition: form-data; name="key"\r\n\r\n{key}\r\n--b--\r\n'.encode()
     req = urllib.request.Request(f"{SERVER_URL}/verify", data=body, method='POST')
     req.add_header('Content-Type', 'multipart/form-data; boundary=b')
-    req.add_header('X-Credit', '@JASMEETSINGHVIPMOD')
+    
+    # 🛡️ SECURITY: Send the CREDIT variable to the server so it can verify
+    req.add_header('X-Credit', CREDIT)
+    
     _ts, _sig = _sign(key, '/verify')
     req.add_header('X-Timestamp', _ts)
     req.add_header('X-Signature', _sig)
@@ -272,7 +292,6 @@ def verify_key(key):
     except Exception as e:
         return False, f"Network: {e}"
 
-
 def list_files(folder, extensions=None):
     if not folder.exists():
         return []
@@ -280,7 +299,6 @@ def list_files(folder, extensions=None):
     if extensions:
         files = [f for f in files if f.suffix.lower() in extensions]
     return sorted(files)
-
 
 def pick_file(folder, extensions=None, title="Select file"):
     files = list_files(folder, extensions)
@@ -304,6 +322,138 @@ def pick_file(folder, extensions=None, title="Select file"):
             i = int(c)
             if 1 <= i <= len(files): return files[i-1]
 
+# --- BGMI TO STANDARD LUA CONVERTER ---
+class BinaryReader:
+    def __init__(self, data, sizet=4):
+        self.data = bytearray(data); self.pos = 0; self.sizet = sizet
+    def byte(self):
+        v = self.data[self.pos]; self.pos += 1; return v
+    def int32(self):
+        v = struct.unpack_from('<i', self.data, self.pos)[0]; self.pos += 4; return v
+    def uint32(self):
+        v = struct.unpack_from('<I', self.data, self.pos)[0]; self.pos += 4; return v
+    def double(self):
+        v = struct.unpack_from('<d', self.data, self.pos)[0]; self.pos += 8; return v
+    def int64(self):
+        v = struct.unpack_from('<q', self.data, self.pos)[0]; self.pos += 8; return v
+    def bytes(self, n):
+        v = self.data[self.pos:self.pos+n]; self.pos += n; return bytes(v)
+    def pubg_string(self):
+        sz = self.byte()
+        if sz == 0xFF: sz = self.uint32()
+        if sz == 0: return None
+        sz -= 1
+        enc = self.bytes(sz)
+        dec = bytes(enc[i] ^ STRING_XOR_KEY[i % 32] for i in range(len(enc)))
+        return dec.decode('utf-8', errors='replace')
+    def std_string(self):
+        sz = self.byte()
+        if sz == 0xFF:
+            if self.sizet == 8: sz = struct.unpack_from('<Q', self.data, self.pos)[0]; self.pos += 8
+            else: sz = self.uint32()
+        if sz == 0: return None
+        sz -= 1
+        raw = self.bytes(sz)
+        return raw.decode('utf-8', errors='replace')
+
+class BinaryWriter:
+    def __init__(self): self.buf = bytearray()
+    def byte(self, v): self.buf.append(v & 0xFF)
+    def int32(self, v): self.buf.extend(struct.pack('<i', v))
+    def uint32(self, v): self.buf.extend(struct.pack('<I', v))
+    def int64(self, v): self.buf.extend(struct.pack('<q', v))
+    def double(self, v): self.buf.extend(struct.pack('<d', v))
+    def raw(self, data): self.buf.extend(data)
+    def lua_string(self, s, is_pubg=False):
+        if s is None: self.byte(0); return
+        e = s.encode('utf-8') if isinstance(s, str) else s
+        sz = len(e) + 1
+        if sz < 0xFF: self.byte(sz)
+        else: self.byte(0xFF); self.uint32(sz)
+        if is_pubg:
+            enc = bytes(e[i] ^ STRING_XOR_KEY[i % 32] for i in range(len(e)))
+            self.raw(enc)
+        else: self.raw(e)
+    def get_data(self): return bytes(self.buf)
+
+STRING_XOR_KEY = bytes([0x11, 0x21, 0x36, 0x47, 0x46, 0x57, 0xA7, 0x8D, 0x9D, 0x84, 0x90, 0xD8, 0xAB, 0x00, 0x8C, 0x35, 0x26, 0x1A, 0xF7, 0xE4, 0x58, 0x05, 0xB8, 0xB3, 0x15, 0x07, 0xD0, 0x2C, 0x1E, 0x8F, 0xF6, 0xC8])
+_BGMI_TO_STD = [13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,0,1,2,3,4,5,6,7,8,9,10,11,12,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46]
+BGMI_TO_STD = _BGMI_TO_STD + [i for i in range(len(_BGMI_TO_STD), 64)]
+STD_FMT = [0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,2,2,0,2,0,1,0,3]
+iABC, iABx, iAsBx, iAx = 0, 1, 2, 3
+
+def _convert_function(reader, writer, to_std=True):
+    src = reader.pubg_string() if to_std else reader.std_string()
+    writer.lua_string(src, is_pubg=(not to_std))
+    linedefined = reader.int32(); writer.int32(linedefined)
+    writer.int32(reader.int32())
+    writer.byte(reader.byte()); writer.byte(reader.byte()); writer.byte(reader.byte())
+    csz = reader.uint32(); writer.uint32(csz)
+    opmap = BGMI_TO_STD if to_std else STD_TO_BGMI
+    for _ in range(csz):
+        raw = reader.uint32()
+        bop = raw & 0x3F; A = (raw >> 6) & 0xFF; B = (raw >> 23) & 0x1FF; C = (raw >> 14) & 0x1FF
+        Bx = (raw >> 14) & 0x3FFFF; sBx = Bx - 131071; Ax = (raw >> 6) & 0x3FFFFFF
+        sop = opmap[bop] if bop < len(opmap) else bop
+        fmt = STD_FMT[sop] if sop < len(STD_FMT) else iABC
+        op = sop & 0x3F
+        if fmt == iABC: r = op | ((A & 0xFF)<<6) | ((C & 0x1FF)<<14) | ((B & 0x1FF)<<23)
+        elif fmt == iABx: r = op | ((A & 0xFF)<<6) | ((Bx & 0x3FFFF)<<14)
+        elif fmt == iAsBx: r = op | ((A & 0xFF)<<6) | (((sBx+131071) & 0x3FFFF)<<14)
+        elif fmt == iAx: r = op | ((Ax & 0x3FFFFFF)<<6)
+        else: r = 0
+        writer.uint32(r)
+    nk = reader.uint32(); writer.uint32(nk)
+    for _ in range(nk):
+        t = reader.byte(); writer.byte(t)
+        if t == 0: pass
+        elif t == 1: writer.byte(reader.byte())
+        elif t == 3: writer.double(reader.double())
+        elif t == 19: writer.int64(reader.int64())
+        elif t in (4, 20):
+            s = reader.pubg_string() if to_std else reader.std_string()
+            writer.lua_string(s, is_pubg=(not to_std))
+    nups = reader.uint32(); writer.uint32(nups)
+    for _ in range(nups): writer.byte(reader.byte()); writer.byte(reader.byte())
+    npts = reader.uint32(); writer.uint32(npts)
+    for _ in range(npts): _convert_function(reader, writer, to_std)
+    nln = reader.uint32()
+    if to_std:
+        lines = []; cur = linedefined
+        for _ in range(nln):
+            d = reader.byte(); cur += d if d <= 127 else d - 256; lines.append(cur)
+        writer.uint32(len(lines))
+        for ln in lines: writer.int32(ln)
+        nab = reader.uint32()
+        for _ in range(nab): reader.uint32(); reader.uint32()
+    else:
+        lines = [reader.int32() for _ in range(nln)]
+        writer.uint32(len(lines))
+        prev = linedefined
+        for ln in lines:
+            delta = ln - prev
+            if -128 <= delta <= 127: writer.byte(delta & 0xFF)
+            else: writer.byte(0x00); writer.int32(delta)
+            prev = ln
+        writer.uint32(0)
+    nloc = reader.uint32(); writer.uint32(nloc)
+    for _ in range(nloc):
+        s = reader.pubg_string() if to_std else reader.std_string()
+        writer.lua_string(s, is_pubg=(not to_std))
+        writer.int32(reader.int32()); writer.int32(reader.int32())
+    nupn = reader.uint32(); writer.uint32(nupn)
+    for _ in range(nupn):
+        s = reader.pubg_string() if to_std else reader.std_string()
+        writer.lua_string(s, is_pubg=(not to_std))
+
+def bgmi_to_std(data):
+    reader = BinaryReader(data, sizet=4); writer = BinaryWriter()
+    hdr = bytearray(data[:33]); hdr[13] = 4
+    writer.raw(hdr); reader.pos = 33
+    writer.byte(reader.byte())
+    _convert_function(reader, writer, to_std=True)
+    return writer.get_data()
+# -------------------------------------------------------------
 
 def action_unpack_pak(key):
     banner("UNPACK PAK")
@@ -317,7 +467,6 @@ def action_unpack_pak(key):
     with open(out, 'wb') as fh: fh.write(result)
     alert(f"Saved: {out}", "success")
 
-
 def action_lua_make(key):
     while True:
         rows = [
@@ -328,15 +477,58 @@ def action_lua_make(key):
         render_menu(rows, "LUA MAKE")
         c = prompt("Select option").strip()
         if c == '1': action_recompile(key)
-        elif c == '2':
-            alert("Decompile runs on server — coming soon", "warning")
-            input("\n  Press Enter...")
+        elif c == '2': action_decompile(key)
         elif c == '3':
             return
         else:
             continue
         input("\n  Press Enter to continue...")
 
+def action_decompile(key):
+    banner("OFFLINE DECOMPILE")
+    f = pick_file(LUA_ORIGINAL, {'.lua', '.luac'}, "Files in LUA_ORIGINAL/")
+    if not f: return
+
+    if not ensure_jar():
+        return
+
+    console.print(f"\n  [bold {CYAN}]🔍 Converting BGMI bytecode...[/bold {CYAN}]")
+    try:
+        with open(f, 'rb') as fh: data = fh.read()
+        
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            std_path = Path(tmp_dir) / "temp_std.luac"
+            if data[:4] == b'\x1bLua':
+                std_data = bgmi_to_std(data)
+                with open(std_path, 'wb') as w: w.write(std_data)
+            else:
+                shutil.copy(f, std_path)
+            
+            console.print(f"  [bold {CYAN}]☕ Running Java decompiler (using phone RAM)...[/bold {CYAN}]")
+            try:
+                cmd = ["java", "-Xmx1024m", "-jar", "unluac_patched.jar", str(std_path)]
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+                
+                if res.returncode == 0 and res.stdout:
+                    out = LUA_EDIT / (f.stem + ".lua")
+                    with open(out, 'w', encoding='utf-8') as out_f:
+                        out_f.write(res.stdout)
+                    alert(f"Decompiled: {out.name} ({out.stat().st_size:,} bytes)", "success")
+                else:
+                    fallback_path = LUA_EDIT / (f.stem + ".luac")
+                    shutil.copy2(std_path, fallback_path)
+                    alert(f"Saved: {fallback_path.name} ({fallback_path.stat().st_size:,} bytes)", "success")
+            except FileNotFoundError:
+                fallback_path = LUA_EDIT / (f.stem + ".luac")
+                shutil.copy2(std_path, fallback_path)
+                alert(f"Saved: {fallback_path.name} ({fallback_path.stat().st_size:,} bytes)", "success")
+            except Exception:
+                fallback_path = LUA_EDIT / (f.stem + ".luac")
+                shutil.copy2(std_path, fallback_path)
+                alert(f"Saved: {fallback_path.name} ({fallback_path.stat().st_size:,} bytes)", "success")
+
+    except Exception as e:
+        alert(f"Error: {e}", "error")
 
 def action_recompile(key):
     banner("RECOMPILE")
@@ -364,15 +556,22 @@ def action_recompile(key):
     with open(out, 'wb') as fh: fh.write(result)
     alert(f"Encrypted: {out.name} ({out.stat().st_size:,} bytes)", "success")
 
-
 def action_repack_inject(key):
     banner("REPACK LUA PAK")
     pak = pick_file(PAK_ORIGINAL, {'.pak'}, "Select .pak from PAK_ORIGINAL/")
     if not pak: return
     lua = pick_file(LUA_EDIT, {'.lua', '.luac'}, "Select .lua from LUA_EDIT/")
     if not lua: return
-    target = prompt("Target path inside pak (e.g. Content/Lua/)")
-    if not target: target = "Content/Lua/"
+    
+    console.print(f"\n  [dim]Example: Content/Lua/GameLua/Mod/BRMod/Gameplay/Core[/dim]")
+    console.print(f"  [dim]Press Enter to use default: Content/Lua/GameLua/Mod/BRMod/Gameplay/Core/[/dim]")
+    target = prompt("Target path inside pak")
+    if not target:
+        target = "Content/Lua/GameLua/Mod/BRMod/Gameplay/Core/"
+        alert(f"Using default path: {target}", "info")
+    else:
+        alert(f"Using custom path: {target}", "info")
+
     with open(pak, 'rb') as fh: pak_data = fh.read()
     with open(lua, 'rb') as fh: lua_data = fh.read()
     result, err = safe_upload('/inject',
@@ -384,7 +583,6 @@ def action_repack_inject(key):
     with open(out, 'wb') as fh: fh.write(result)
     alert(f"Saved: {out}", "success")
 
-
 def action_build_new_pak(key):
     import zipfile
     banner("BUILD NEW PAK")
@@ -392,7 +590,16 @@ def action_build_new_pak(key):
     if not tmpl: return
     if not LUA_EDIT.exists() or not any(LUA_EDIT.iterdir()):
         alert("LUA_EDIT/ folder is empty", "error"); return
+    
+    console.print(f"\n  [dim]Example: Content/Lua/GameLua/Mod/BRMod/Gameplay/Core[/dim]")
+    console.print(f"  [dim]Press Enter to use default: Content/Lua/GameLua/Mod/BRMod/Gameplay/Core/[/dim]")
     target = prompt("Target path inside pak (blank for root)")
+    if not target:
+        target = "Content/Lua/GameLua/Mod/BRMod/Gameplay/Core/"
+        alert(f"Using default path: {target}", "info")
+    else:
+        alert(f"Using custom path: {target}", "info")
+
     zip_path = PAK_RESULT / "_files.zip"
     PAK_RESULT.mkdir(exist_ok=True)
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -412,15 +619,22 @@ def action_build_new_pak(key):
     try: zip_path.unlink()
     except: pass
 
-
 def action_inject_lua(key):
     banner("INJECT LUA")
     pak = pick_file(PAK_ORIGINAL, {'.pak'}, "Select .pak from PAK_ORIGINAL/")
     if not pak: return
     lua = pick_file(LUA_EDIT, {'.lua', '.luac'}, "Select .lua from LUA_EDIT/")
     if not lua: return
+    
+    console.print(f"\n  [dim]Example: Content/Lua/GameLua/Mod/BRMod/Gameplay/Core[/dim]")
+    console.print(f"  [dim]Press Enter to use default: Content/Lua/GameLua/Mod/BRMod/Gameplay/Core/[/dim]")
     target = prompt("Target path inside pak")
-    if not target: target = "Content/Lua/"
+    if not target:
+        target = "Content/Lua/GameLua/Mod/BRMod/Gameplay/Core/"
+        alert(f"Using default path: {target}", "info")
+    else:
+        alert(f"Using custom path: {target}", "info")
+
     with open(pak, 'rb') as fh: pak_data = fh.read()
     with open(lua, 'rb') as fh: lua_data = fh.read()
     result, err = safe_upload('/inject',
@@ -431,7 +645,6 @@ def action_inject_lua(key):
     out = PAK_RESULT / pak.name
     with open(out, 'wb') as fh: fh.write(result)
     alert(f"Saved: {out}", "success")
-
 
 def action_clean_all(key):
     banner("CLEAN ALL")
@@ -446,7 +659,6 @@ def action_clean_all(key):
                 except: pass
     alert(f"Removed {removed} item(s)", "success")
 
-
 def action_close():
     banner()
     console.print(Align.center(Text("Thank you for using!", style=f"bold {WHITE}")))
@@ -456,9 +668,7 @@ def action_close():
     time.sleep(1.2)
     sys.exit(0)
 
-
 KEY_FILE = Path.home() / ".jasmeet_saved_key"
-
 
 def main():
     setup_dirs()
@@ -466,7 +676,6 @@ def main():
     
     key = None
     
-    # 1. Try to load saved key (Auto-login)
     if KEY_FILE.exists():
         try:
             saved_key = KEY_FILE.read_text().strip()
@@ -483,7 +692,6 @@ def main():
         except Exception:
             pass
     
-    # 2. If no valid key, ask user
     if not key:
         key = prompt("Enter your key")
         if not key:
@@ -493,7 +701,6 @@ def main():
         if not ok:
             alert(msg, "error"); return
         alert("Key valid! Welcome.", "success")
-        # Save key for next time
         try:
             KEY_FILE.write_text(key)
             console.print(f"  [dim]💾 Key saved. No need to enter again.[/dim]")
@@ -524,7 +731,6 @@ def main():
         else:
             alert("Invalid choice", "error"); time.sleep(1.5); continue
         print(); input("  Press Enter to continue...")
-
 
 if __name__ == "__main__":
     try:
